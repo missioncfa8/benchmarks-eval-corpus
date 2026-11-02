@@ -199,7 +199,7 @@ async def api_search(
 @app.post("/api/hf/reconnect", tags=["Admin"])
 async def reconnect_hf(
     repo: str = Query("", description="Override HuggingFace repo name"),
-    split: str = Query("train", description="Dataset split"),
+    split: str = Query("", description="Optional dataset split or subfolder"),
 ):
     """Manually re-mount or update HuggingFace remote view."""
     try:

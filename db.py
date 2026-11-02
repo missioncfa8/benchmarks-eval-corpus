@@ -28,6 +28,7 @@ class DuckDBManager:
         self.db_path = db_path
         self.conn: Optional[duckdb.DuckDBPyConnection] = None
         self.is_ready = False
+        self.last_error: Optional[str] = None
 
     def initialize(self):
         """Initialize in-memory DuckDB and mount the Hugging Face Parquet dataset view."""
@@ -51,14 +52,18 @@ class DuckDBManager:
             except Exception as e:
                 logger.warning("Could not create HF secret extension: %s", e)
 
-        # Mount remote dataset view
+        # Mount remote dataset view (at dataset root)
         self.mount_hf_view()
         logger.info("DuckDB remote dataset ready.")
 
-    def mount_hf_view(self, repo: str = "", split: str = "train"):
+    def mount_hf_view(self, repo: str = "", split: str = ""):
         """Create a cached DuckDB view over HuggingFace Parquet chunks."""
         target_repo = repo or HF_REPO
-        hf_url = f"hf://datasets/{target_repo}/{split}/*.parquet"
+        if split:
+            hf_url = f"hf://datasets/{target_repo}/{split}/*.parquet"
+        else:
+            hf_url = f"hf://datasets/{target_repo}/*.parquet"
+
         logger.info("Mounting HF Parquet view from: %s", hf_url)
 
         try:
@@ -67,10 +72,13 @@ class DuckDBManager:
                 SELECT * FROM read_parquet('{hf_url}')
             """)
             self.is_ready = True
-            logger.info("Remote view 'records' mounted successfully.")
+            self.last_error = None
+            logger.info("Remote view 'records' mounted successfully from %s", hf_url)
         except Exception as e:
-            logger.error("Failed to mount HF view '%s': %s", hf_url, e)
+            err = str(e)
+            logger.error("Failed to mount HF view '%s': %s", hf_url, err)
             self.is_ready = False
+            self.last_error = err
             raise
 
     def close(self):
@@ -92,8 +100,8 @@ class DuckDBManager:
         cleaned_phone = self._clean_phone(value)
 
         query_map = {
-            "mobile":  ("SELECT * FROM records WHERE mobile = ? LIMIT ?", [cleaned_phone, limit]),
-            "alt":     ("SELECT * FROM records WHERE alt = ? LIMIT ?", [cleaned_phone, limit]),
+            "mobile":  ("SELECT * FROM records WHERE mobile = ? OR alt = ? LIMIT ?", [cleaned_phone, cleaned_phone, limit]),
+            "alt":     ("SELECT * FROM records WHERE alt = ? OR mobile = ? LIMIT ?", [cleaned_phone, cleaned_phone, limit]),
             "id":      ("SELECT * FROM records WHERE id = ? LIMIT ?", [value.strip(), limit]),
             "oid":     ("SELECT * FROM records WHERE LOWER(oid) LIKE LOWER(?) LIMIT ?", [f"%{value}%", limit]),
             "email":   ("SELECT * FROM records WHERE LOWER(email) LIKE LOWER(?) LIMIT ?", [f"%{value}%", limit]),
@@ -132,11 +140,11 @@ class DuckDBManager:
     # Status / Info
     # ------------------------------------------------------------------
     def get_status(self) -> Dict[str, Any]:
-        """Return engine status and mounted views."""
+        """Return engine status, mounted views, and errors if any."""
         views = []
         if self.conn:
             try:
-                res = self.conn.execute("SELECT view_name FROM information_schema.views").fetchall()
+                res = self.conn.execute("SHOW TABLES").fetchall()
                 views = [r[0] for r in res]
             except Exception:
                 pass
@@ -145,6 +153,7 @@ class DuckDBManager:
             "repo": HF_REPO,
             "ready": self.is_ready,
             "views": views,
+            "error": self.last_error,
             "storage": "in-memory (0 GB local disk)",
             "memory_limit": DUCKDB_MEMORY_LIMIT,
         }
