@@ -1,7 +1,7 @@
 """
-db.py — In-Memory DuckDB Manager for Data Intelligence Portal
-Queries 3.77B records / 431 Parquet chunks directly from HuggingFace
-via httpfs with predicate pushdown. Zero local disk required (100% Free Tier).
+db.py — High-Performance In-Memory DuckDB Engine for Hugging Face Spaces
+Queries ~3.77B records / 431 Parquet chunks directly from Hugging Face
+via httpfs with predicate pushdown, object caching, and multi-threading.
 """
 
 import os
@@ -16,9 +16,9 @@ logger = logging.getLogger("portal.db")
 # HuggingFace dataset configuration
 # ---------------------------------------------------------------------------
 HF_REPO = os.environ.get("HF_REPO", "aman29/benchmarks-eval-corpus")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")  # Read token if repo is private
-DUCKDB_MEMORY_LIMIT = os.environ.get("DUCKDB_MEMORY_LIMIT", "450MB")  # Fits safely inside Render 512MB free tier
-DUCKDB_THREADS = os.environ.get("DUCKDB_THREADS", "2")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")  # Token injected in Spaces or environment
+DUCKDB_MEMORY_LIMIT = os.environ.get("DUCKDB_MEMORY_LIMIT", "10GB")  # 16GB available on HF Space
+DUCKDB_THREADS = os.environ.get("DUCKDB_THREADS", "4")
 
 
 class DuckDBManager:
@@ -31,16 +31,24 @@ class DuckDBManager:
         self.last_error: Optional[str] = None
 
     def initialize(self):
-        """Initialize in-memory DuckDB and mount the Hugging Face Parquet dataset view."""
-        logger.info("Initializing in-memory DuckDB (limit: %s, threads: %s)", DUCKDB_MEMORY_LIMIT, DUCKDB_THREADS)
+        """Initialize in-memory DuckDB with high-throughput cache and threading."""
+        logger.info("Initializing DuckDB engine (memory: %s, threads: %s)", DUCKDB_MEMORY_LIMIT, DUCKDB_THREADS)
         self.conn = duckdb.connect(self.db_path)
 
-        # Performance and memory configuration for Free Tier (512MB RAM cap)
+        # Performance tuning: 16GB RAM + 2 vCPU available on HF Space
         self.conn.execute(f"SET memory_limit = '{DUCKDB_MEMORY_LIMIT}'")
         self.conn.execute(f"SET threads = {DUCKDB_THREADS}")
         self.conn.execute("SET preserve_insertion_order = false")
 
-        # Install & load httpfs extension for remote HTTP range requests
+        # Object and metadata caching for ultra-fast repeated queries
+        try:
+            self.conn.execute("SET enable_object_cache = true")
+            self.conn.execute("SET enable_http_metadata_cache = true")
+            self.conn.execute("SET http_keep_alive = true")
+        except Exception as e:
+            logger.warning("Cache flag warning: %s", e)
+
+        # Install & load httpfs extension
         self.conn.execute("INSTALL httpfs")
         self.conn.execute("LOAD httpfs")
 
@@ -50,9 +58,9 @@ class DuckDBManager:
             try:
                 self.conn.execute(f"CREATE SECRET IF NOT EXISTS hf_secret (TYPE HUGGINGFACE, TOKEN '{HF_TOKEN}')")
             except Exception as e:
-                logger.warning("Could not create HF secret extension: %s", e)
+                logger.warning("Could not create HF secret: %s", e)
 
-        # Mount remote dataset view (at dataset root)
+        # Mount remote dataset view from dataset root
         self.mount_hf_view()
         logger.info("DuckDB remote dataset ready.")
 

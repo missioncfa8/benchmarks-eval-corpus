@@ -1,24 +1,24 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    HF_REPO=aman29/benchmarks-eval-corpus \
-    DUCKDB_MEMORY_LIMIT=450MB \
-    DUCKDB_THREADS=2
+# Hugging Face Spaces runs as user 1000
+RUN useradd -m -u 1000 user
 
 WORKDIR /app
 
-# ─── Dependencies ────────────────────────────────────────────────────
-COPY requirements.txt .
+COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ─── Application code ────────────────────────────────────────────────
-COPY . .
+COPY --chown=user:user . .
 
-# ─── Expose & run ────────────────────────────────────────────────────
-# Render injects $PORT (default 10000 on free tier)
-EXPOSE 10000
+USER user
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --log-level info"]
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    PORT=7860 \
+    HF_REPO=aman29/benchmarks-eval-corpus \
+    DUCKDB_MEMORY_LIMIT=10GB \
+    DUCKDB_THREADS=4
+
+EXPOSE 7860
+
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860} --log-level info"]
