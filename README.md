@@ -1,76 +1,98 @@
-# Data Intelligence Portal (100% Free Tier Edition)
+# Nexus Personnel Intelligence & Verification Platform
 
-FastAPI + DuckDB personal OSINT search engine querying **~3.77 billion records / 431 Parquet chunks** directly from Hugging Face (`aman29/benchmarks-eval-corpus`).
+Enterprise-grade identity verification and workforce records lookup platform built on **FastAPI** and **DuckDB Columnar Streaming**.
 
-- **Cost: $0/month** (runs on Render's Free Plan).
-- **Disk Used: 0 GB** (no paid persistent disks, no local storage).
-- **Search Latency: ~2.3 seconds** (DuckDB `httpfs` remote predicate pushdown).
+Designed for high-throughput personnel verification, background investigations, and contact registry analytics across **~3.77 billion records** hosted on Hugging Face (`aman29/benchmarks-eval-corpus`).
 
 ---
 
-## How It Works
+## 🏛️ System Architecture
 
-DuckDB runs completely **in-memory** and queries the 431 Parquet chunks hosted on Hugging Face using HTTP range requests:
-1. When you search for a phone, ID, name, or address, DuckDB reads only the metadata of the remote Parquet files.
-2. DuckDB fetches only the exact row groups matching your query filter (predicate pushdown).
-3. Results are returned to the web dashboard and JSON API in ~2 seconds.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│             Nexus Personnel Intelligence Engine                 │
+│                                                                 │
+│  ┌───────────────────────┐         ┌─────────────────────────┐ │
+│  │   Executive Web UI    │         │  FastAPI Async Engine   │ │
+│  │  (Dark Enterprise UI) │◀───────▶│  REST API & Telemetry   │ │
+│  └───────────────────────┘         └───────────┬─────────────┘ │
+│                                                │               │
+│                                                ▼               │
+│                                    ┌─────────────────────────┐ │
+│                                    │   DuckDB In-Memory      │ │
+│                                    │   httpfs Columnar Push  │ │
+│                                    └───────────┬─────────────┘ │
+│                                                │ HTTP Range    │
+│                                                ▼               │
+│                                    ┌─────────────────────────┐ │
+│                                    │  HuggingFace Repository │ │
+│                                    │  431 Parquet Partitions │ │
+│                                    └─────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Technical Capabilities
+
+- **Zero-Storage Footprint**: Operates 100% in-memory with zero local disk overhead ($0/mo cost on free tier).
+- **Columnar Predicate Pushdown**: DuckDB queries Parquet chunk metadata over HTTP range headers, fetching only matching row groups in ~2 seconds.
+- **Multi-Vector Identity Search**: Real-time resolution across National IDs (Aadhaar/Govt ID), 10-digit mobile numbers, alternate phones, full names, parentage, regional circles, and professional handles (LinkedIn).
+- **Executive Dossier UI**: Clean enterprise-grade dark interface featuring automated avatar initials, single-click clipboard chips, status badges, and filter shortcuts.
 
 ---
 
-## Deployment to Render.com (100% Free)
-
-1. Push this folder to a **Private GitHub or GitLab** repository.
-2. Go to [Render Dashboard](https://dashboard.render.com) → **New +** → **Web Service**.
-3. Select your repository.
-4. Set:
-   - **Runtime**: `Docker`
-   - **Instance Type**: **Free** ($0/mo)
-   - **Health Check Path**: `/health`
-5. Under **Environment Variables**, add:
-   - `HF_TOKEN`: (Your Hugging Face Read token `hf_...` if dataset is private)
-   - `HF_REPO`: `aman29/benchmarks-eval-corpus`
-6. Click **Deploy Web Service**.
-
-That's it! Render will build the Docker container and start your service for free.
-
----
-
-## Local Development
+## 🚀 Quick Start (Local Development)
 
 ```bash
-# Set HF_TOKEN if dataset is private (optional)
-export HF_TOKEN="hf_..."
+# Clone the repository
+git clone https://github.com/missioncfa8/benchmarks-eval-corpus.git
+cd benchmarks-eval-corpus
 
-# Run locally
+# Run containerized locally
 docker compose up --build
 
-# Open in browser: http://localhost:8000
+# Access Web Portal: http://localhost:8000
+# Access API Documentation: http://localhost:8000/docs
 ```
 
 ---
 
-## Search Syntax
+## 🌐 Cloud Deployment (Render.com)
 
-| Query | Matches |
-|---|---|
-| `9810014045` | Exact mobile lookup |
-| `name:rahul` | Name prefix search |
-| `rahul sharma` | Name + father name search |
-| `address:mumbai` | Address search |
-| `id:1234567890` | Aadhaar / Gov ID lookup |
-| `oid:linkedin` | LinkedIn / other ID lookup |
-| `circle:airtel` | Operator / Telecom circle search |
-| `email:foo@bar.com` | Email lookup |
-| `9810014045, name:rahul` | Multi-query batch search |
+1. Connect your repository to **Render.com**.
+2. Deploy as a **Web Service** with:
+   - **Runtime**: `Docker`
+   - **Plan**: `Free` ($0/mo)
+   - **Health Check Path**: `/health`
+3. Configure Environment Variables:
+   - `HF_REPO`: `aman29/benchmarks-eval-corpus`
+   - `HF_TOKEN`: *(Optional: Hugging Face read token if repository is private)*
 
 ---
 
-## API Endpoints
+## 🔍 Verification Query Syntax
 
-- `GET /` — HTML Search Dashboard
-- `GET /api/search?q=...` — REST API JSON search
-- `GET /health` — Health and DuckDB engine status
-- `POST /api/hf/reconnect` — Re-mount remote dataset
-- `GET /docs` — Swagger UI
+| Query Syntax | Verification Vector | Example |
+|---|---|---|
+| `9810014045` | Primary Mobile Number (Exact Partition Match) | `9810014045` |
+| `name:rahul` | Personnel Name Prefix / Substring Match | `name:rahul` |
+| `rahul sharma` | Full Name & Lineage Composite Search | `rahul sharma` |
+| `id:1234567890` | National Identity / Aadhaar / KYC ID | `id:1234567890` |
+| `address:mumbai` | Jurisdictional Address Substring | `address:mumbai` |
+| `circle:airtel` | Telecom Operator / Circle Region | `circle:airtel` |
+| `oid:linkedin` | Auxiliary / Professional Profile Identifier | `oid:linkedin.com/in/` |
+| `q1, q2, q3` | Concurrent Multi-Query Batch Processing | `9810014045, name:rahul` |
 
-**Strictly for personal use.**
+---
+
+## 📡 REST API Endpoints
+
+- `GET /` — Executive Personnel Search Interface
+- `GET /api/search?q={query}` — JSON Record Verification Endpoint
+- `GET /health` — Real-Time Engine Telemetry & View Status
+- `POST /api/hf/reconnect` — Re-mount Remote Dataset
+- `POST /api/query?sql={SELECT...}` — Read-Only Direct SQL Inspection
+- `GET /docs` — Interactive OpenAPI / Swagger Documentation
+
+---
+
+**Confidential & Internal Verification System.**

@@ -59,12 +59,12 @@ async def lifespan(app: FastAPI):
 # FastAPI app
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="Data Intelligence Portal",
+    title="Nexus Personnel Intelligence & Verification Platform",
     description=(
-        "Personal OSINT search engine querying ~3.77B records / 431 Parquet chunks "
-        "on Hugging Face (aman29/benchmarks-eval-corpus) via DuckDB. 100% Free Tier."
+        "Enterprise-grade identity verification and workforce records lookup platform. "
+        "Powered by FastAPI and DuckDB Columnar Streaming over remote Parquet datasets."
     ),
-    version="2.1.0",
+    version="2.2.0",
     lifespan=lifespan,
 )
 
