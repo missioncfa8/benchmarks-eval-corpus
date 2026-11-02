@@ -1,0 +1,31 @@
+# Render.com Blueprint — Data Intelligence Portal (100% FREE TIER)
+# Zero paid disks — Queries ~3.77B records directly from HuggingFace via DuckDB httpfs
+#
+# Deploy: Connect your GitHub/GitLab repo in Render Dashboard,
+# or click New -> Blueprint.
+
+services:
+  - type: web
+    name: data-intelligence-portal
+    runtime: docker
+    plan: free                        # 100% Free plan ($0/mo)
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: HF_REPO
+        value: "aman29/benchmarks-eval-corpus"
+      - key: HF_TOKEN
+        sync: false                   # Optional: set in dashboard if dataset is private
+      - key: DUCKDB_MEMORY_LIMIT
+        value: "450MB"                # Fits within Render Free tier 512MB RAM limit
+      - key: DUCKDB_THREADS
+        value: "2"
+      - key: DEFAULT_LIMIT
+        value: "25"
+      - key: MAX_LIMIT
+        value: "100"

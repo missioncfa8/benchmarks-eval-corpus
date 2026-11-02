@@ -1,0 +1,15 @@
+# docker-compose.yml — Local development (100% in-memory / zero disk setup)
+services:
+  portal:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HF_REPO=aman29/benchmarks-eval-corpus
+      - HF_TOKEN=${HF_TOKEN:-}
+      - DUCKDB_MEMORY_LIMIT=1GB
+      - DUCKDB_THREADS=2
+      - DEFAULT_LIMIT=25
+      - MAX_LIMIT=100
+    restart: unless-stopped
