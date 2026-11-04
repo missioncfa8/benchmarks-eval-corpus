@@ -1,24 +1,28 @@
 FROM python:3.12-slim
 
-# Hugging Face Spaces runs as user 1000
-RUN useradd -m -u 1000 user
+# Create non-root application user
+RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
-COPY --chown=user:user requirements.txt .
+# Install dependencies first for Docker layer caching
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --chown=user:user . .
+# Copy application files
+COPY . .
 
-USER user
+RUN chown -R appuser:appuser /app
+USER appuser
 
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH \
-    PORT=7860 \
+# Default Environment
+ENV PORT=8000 \
+    HOST=0.0.0.0 \
     HF_REPO=aman29/benchmarks-eval-corpus \
-    DUCKDB_MEMORY_LIMIT=10GB \
+    HF_TOKEN="" \
+    DUCKDB_MEMORY_LIMIT=2GB \
     DUCKDB_THREADS=4
 
-EXPOSE 7860
+EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860} --log-level info"]
+CMD ["python", "main.py"]
