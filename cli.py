@@ -10,6 +10,13 @@ import argparse
 import time
 import json
 
+# Ensure UTF-8 output across Windows and Linux terminals
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from dotenv import load_dotenv
 
 # Ensure local portal modules are in path

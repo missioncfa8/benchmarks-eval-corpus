@@ -4,6 +4,9 @@ A production-grade, universal OSINT search and verification platform engineered 
 
 Powered by **FastAPI** and **DuckDB Columnar Remote Streaming** with **2-Step Inverted Index Pushdown** over Hugging Face Parquet datasets.
 
+> 📚 **Complete System Bible & Engineering History:**  
+> For the comprehensive guide covering the engineering journey, root-cause crash analysis, 2-step inverted index math, CLI/REST manuals, and platform guides for beginners, backend developers, and AI agents, see **[`MASTER_DOCUMENTATION.md`](MASTER_DOCUMENTATION.md)**.
+
 ---
 
 ## 🌟 Key Features

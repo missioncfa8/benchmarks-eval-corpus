@@ -80,6 +80,8 @@ class DuckDBManager:
             self.conn.execute("SET enable_object_cache = true")
             self.conn.execute("SET enable_http_metadata_cache = true")
             self.conn.execute("SET http_keep_alive = true")
+            self.conn.execute("SET http_timeout = 30")
+            self.conn.execute("SET http_retries = 3")
         except Exception as e:
             logger.warning("Cache flag warning: %s", e)
 
@@ -268,7 +270,8 @@ class DuckDBManager:
         """Fetch complete records from primary sorted dataset using list of mobile numbers."""
         if not mobiles:
             return []
-        quoted_list = ",".join(f"'{m.replace("'", "''")}'" for m in mobiles[:limit])
+        escaped_mobiles = [m.replace("'", "''") for m in mobiles[:limit]]
+        quoted_list = ",".join(f"'{m}'" for m in escaped_mobiles)
         query = f"SELECT * FROM primary_records WHERE mobile IN ({quoted_list}) LIMIT {limit}"
         res = self.conn.execute(query)
         return self._rows_to_dicts(res)
